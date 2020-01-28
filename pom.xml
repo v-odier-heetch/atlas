@@ -606,10 +606,13 @@
                 <graphGroup>org.apache.atlas</graphGroup>
                 <graphArtifact>atlas-graphdb-janus</graphArtifact>
                 <skipDocs>false</skipDocs>
-                <graphdb.backend.impl>org.apache.atlas.repository.graphdb.janus.AtlasJanusGraphDatabase</graphdb.backend.impl>
+                <graphdb.backend.impl>org.apache.atlas.repository.graphdb.janus.AtlasJanusGraphDatabase
+                </graphdb.backend.impl>
                 <graph.index.backend>solr</graph.index.backend>
                 <tests.solr.embedded>true</tests.solr.embedded>
-                <distro.exclude.packages>WEB-INF/lib/je-*.jar,WEB-INF/lib/solr-test-framework-*.jar, WEB-INF/lib/jts-*.jar,WEB-INF/lib/logback-*.jar,WEB-INF/lib/dom4j-*.jar</distro.exclude.packages>
+                <distro.exclude.packages>WEB-INF/lib/je-*.jar,WEB-INF/lib/solr-test-framework-*.jar,
+                    WEB-INF/lib/jts-*.jar,WEB-INF/lib/logback-*.jar,WEB-INF/lib/dom4j-*.jar
+                </distro.exclude.packages>
             </properties>
         </profile>
 
@@ -626,10 +629,13 @@
                 <graphGroup>org.apache.atlas</graphGroup>
                 <graphArtifact>atlas-graphdb-janus</graphArtifact>
                 <skipDocs>false</skipDocs>
-                <graphdb.backend.impl>org.apache.atlas.repository.graphdb.janus.AtlasJanusGraphDatabase</graphdb.backend.impl>
+                <graphdb.backend.impl>org.apache.atlas.repository.graphdb.janus.AtlasJanusGraphDatabase
+                </graphdb.backend.impl>
                 <graph.index.backend>solr</graph.index.backend>
                 <tests.solr.embedded>true</tests.solr.embedded>
-                <distro.exclude.packages>WEB-INF/lib/je-*.jar,WEB-INF/lib/solr-test-framework-*.jar, WEB-INF/lib/jts-*.jar,WEB-INF/lib/logback-*.jar,WEB-INF/lib/dom4j-*.jar</distro.exclude.packages>
+                <distro.exclude.packages>WEB-INF/lib/je-*.jar,WEB-INF/lib/solr-test-framework-*.jar,
+                    WEB-INF/lib/jts-*.jar,WEB-INF/lib/logback-*.jar,WEB-INF/lib/dom4j-*.jar
+                </distro.exclude.packages>
             </properties>
         </profile>
 
@@ -799,6 +805,7 @@
         <module>addons/impala-hook-api</module>
         <module>addons/impala-bridge-shim</module>
         <module>addons/impala-bridge</module>
+        <module>addons/redshift-bridge</module>
 
         <module>distro</module>
     </modules>
@@ -1548,6 +1555,12 @@
 
             <dependency>
                 <groupId>org.apache.atlas</groupId>
+                <artifactId>redshift-bridge</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.atlas</groupId>
                 <artifactId>impala-hook-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1887,17 +1900,22 @@
                             <rules>
                                 <requireMavenVersion>
                                     <version>[3.5.0,)</version>
-                                    <message>** MAVEN VERSION ERROR ** Maven 3.5.0 or above is required. See https://maven.apache.org/install.html </message>
+                                    <message>** MAVEN VERSION ERROR ** Maven 3.5.0 or above is required. See
+                                        https://maven.apache.org/install.html
+                                    </message>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
                                     <level>ERROR</level>
                                     <version>[1.8.0-151,)</version>
-                                    <message>** JAVA VERSION ERROR ** Java 8 (Update 151) or above is required.</message>
+                                    <message>** JAVA VERSION ERROR ** Java 8 (Update 151) or above is required.
+                                    </message>
                                 </requireJavaVersion>
                                 <requireJavaVersion>
                                     <level>WARN</level>
                                     <version>(,1.9]</version>
-                                    <message>** JAVA VERSION WARNING ** Java 9 and above has not been tested with Atlas.</message>
+                                    <message>** JAVA VERSION WARNING ** Java 9 and above has not been tested with
+                                        Atlas.
+                                    </message>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>
@@ -2102,7 +2120,7 @@
                         <!-- atlas doc directory -->
                         <exclude>**/docz-lib/**</exclude>
                         <exclude>**/.docz/**</exclude>
-                        
+
                     </excludes>
                 </configuration>
                 <executions>
