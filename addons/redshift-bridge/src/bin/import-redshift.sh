@@ -96,20 +96,7 @@ for i in "${REDSHIFT_HOME}/lib/"*.jar; do
     REDSHIFT_CP="${REDSHIFT_CP}:$i"
 done
 
-#Add hadoop conf in classpath
-if [ ! -z "$HADOOP_CLASSPATH" ]; then
-    HADOOP_CP=$HADOOP_CLASSPATH
-elif [ ! -z "$HADOOP_HOME" ]; then
-    HADOOP_CP=`$HADOOP_HOME/bin/hadoop classpath`
-elif [ $(command -v hadoop) ]; then
-    HADOOP_CP=`hadoop classpath`
-    echo $HADOOP_CP
-else
-    echo "Environment variable HADOOP_CLASSPATH or HADOOP_HOME need to be set"
-    exit 1
-fi
-
-CP="${REDSHIFT_CP}:${HADOOP_CP}:${ATLASCPPATH}"
+CP="${REDSHIFT_CP}:${ATLASCPPATH}"
 
 # If running in cygwin, convert pathnames and classpath to Windows format.
 if [ "${CYGWIN}" == "true" ]
@@ -117,7 +104,6 @@ then
    ATLAS_LOG_DIR=`cygpath -w ${ATLAS_LOG_DIR}`
    LOGFILE=`cygpath -w ${LOGFILE}`
    REDSHIFT_CP=`cygpath -w ${REDSHIFT_CP}`
-   HADOOP_CP=`cygpath -w ${HADOOP_CP}`
    CP=`cygpath -w -p ${CP}`
 fi
 
