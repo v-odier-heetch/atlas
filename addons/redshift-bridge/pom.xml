@@ -34,11 +34,6 @@
         <!-- apache atlas core dependencies -->
         <dependency>
             <groupId>org.apache.atlas</groupId>
-            <artifactId>atlas-client-v1</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.atlas</groupId>
             <artifactId>atlas-client-v2</artifactId>
         </dependency>
 
@@ -47,55 +42,12 @@
             <artifactId>atlas-notification</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.atlas</groupId>
-            <artifactId>hdfs-model</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.atlas</groupId>
-            <artifactId>hive-bridge</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>hive-exec</artifactId>
-            <version>${hive.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.hbase</groupId>
-            <artifactId>hbase-common</artifactId>
-            <version>${hbase.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.eclipse.jetty</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-        </dependency>
-
         <!-- redshift core dependencies -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-jdbc</artifactId>
             <version>5.2.1.RELEASE</version>
         </dependency>
-        <!--<dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
-        </dependency>-->
         <dependency>
             <groupId>com.amazon.redshift</groupId>
             <artifactId>redshift-jdbc42</artifactId>
@@ -203,17 +155,7 @@
                                         </artifactItem>
                                         <artifactItem>
                                             <groupId>${project.groupId}</groupId>
-                                            <artifactId>atlas-client-v1</artifactId>
-                                            <version>${project.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>${project.groupId}</groupId>
                                             <artifactId>atlas-client-v2</artifactId>
-                                            <version>${project.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>${project.groupId}</groupId>
-                                            <artifactId>hive-bridge</artifactId>
                                             <version>${project.version}</version>
                                         </artifactItem>
                                         <artifactItem>
@@ -230,21 +172,6 @@
                                             <groupId>${project.groupId}</groupId>
                                             <artifactId>atlas-common</artifactId>
                                             <version>${project.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>${project.groupId}</groupId>
-                                            <artifactId>hdfs-model</artifactId>
-                                            <version>${project.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>org.apache.kafka</groupId>
-                                            <artifactId>kafka_${kafka.scala.binary.version}</artifactId>
-                                            <version>${kafka.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>org.apache.kafka</groupId>
-                                            <artifactId>kafka-clients</artifactId>
-                                            <version>${kafka.version}</version>
                                         </artifactItem>
                                         <artifactItem>
                                             <groupId>aopalliance</groupId>
@@ -281,85 +208,108 @@
                                             <artifactId>jettison</artifactId>
                                             <version>${jettison.version}</version>
                                         </artifactItem>
-                                        <artifactItem>
-                                            <groupId>org.codehaus.jettison</groupId>
-                                            <artifactId>jettison</artifactId>
-                                            <version>${jettison.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>com.thoughtworks.paranamer</groupId>
-                                            <artifactId>paranamer</artifactId>
-                                            <version>${paranamer.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>org.apache.hive</groupId>
-                                            <artifactId>hive-exec</artifactId>
-                                            <version>${hive.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>org.apache.hbase</groupId>
-                                            <artifactId>hbase-common</artifactId>
-                                            <version>${hbase.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>org.apache.hadoop</groupId>
-                                            <artifactId>hadoop-common</artifactId>
-                                            <version>${hadoop.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>org.apache.hadoop</groupId>
-                                            <artifactId>hadoop-auth</artifactId>
-                                            <version>${hadoop.version}</version>
-                                        </artifactItem>
-
+                                        <dependency>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-jdbc</artifactId>
+                                            <version>5.2.1.RELEASE</version>
+                                        </dependency>
+                                        <dependency>
+                                            <groupId>com.amazon.redshift</groupId>
+                                            <artifactId>redshift-jdbc42</artifactId>
+                                            <version>1.2.10.1009</version>
+                                        </dependency>
                                         <artifactItem>
                                             <groupId>com.fasterxml.jackson.core</groupId>
                                             <artifactId>jackson-databind</artifactId>
                                             <version>${jackson.databind.version}</version>
                                         </artifactItem>
-
                                         <artifactItem>
                                             <groupId>com.fasterxml.jackson.core</groupId>
                                             <artifactId>jackson-core</artifactId>
                                             <version>${jackson.version}</version>
                                         </artifactItem>
-
                                         <artifactItem>
                                             <groupId>com.fasterxml.jackson.core</groupId>
                                             <artifactId>jackson-annotations</artifactId>
                                             <version>${jackson.version}</version>
                                         </artifactItem>
                                         <dependency>
-                                            <groupId>org.codehaus.woodstox</groupId>
-                                            <artifactId>stax2-api</artifactId>
-                                            <version>${codehaus.woodstox.stax2-api.version}</version>
+                                            <groupId>org.slf4j</groupId>
+                                            <artifactId>slf4j-api</artifactId>
+                                            <version>${slf4j.version}</version>
                                         </dependency>
+                                        <!-- Spring -->
                                         <dependency>
-                                            <groupId>org.apache.hadoop</groupId>
-                                            <artifactId>hadoop-hdfs-client</artifactId>
-                                            <version>${hadoop.hdfs-client.version}</version>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-core</artifactId>
+                                            <version>${spring.version}</version>
                                         </dependency>
 
-                                        <artifactItem>
-                                            <groupId>log4j</groupId>
-                                            <artifactId>log4j</artifactId>
-                                            <version>${log4j.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>com.sun.jersey</groupId>
-                                            <artifactId>jersey-json</artifactId>
-                                            <version>${jersey.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>javax.ws.rs</groupId>
-                                            <artifactId>jsr311-api</artifactId>
-                                            <version>${jsr.version}</version>
-                                        </artifactItem>
-                                        <artifactItem>
-                                            <groupId>com.fasterxml.woodstox</groupId>
-                                            <artifactId>woodstox-core</artifactId>
-                                            <version>${woodstox-core.version}</version>
-                                        </artifactItem>
+                                        <dependency>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-beans</artifactId>
+                                            <version>${spring.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-dao</artifactId>
+                                            <version>2.0.8</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-web</artifactId>
+                                            <version>${spring.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-context</artifactId>
+                                            <version>${spring.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-webmvc</artifactId>
+                                            <version>${spring.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework.security</groupId>
+                                            <artifactId>spring-security-core</artifactId>
+                                            <version>${spring.security.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework.security</groupId>
+                                            <artifactId>spring-security-web</artifactId>
+                                            <version>${spring.security.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework.security</groupId>
+                                            <artifactId>spring-security-config</artifactId>
+                                            <version>${spring.security.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework.security</groupId>
+                                            <artifactId>spring-security-ldap</artifactId>
+                                            <version>${spring.security.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-aop</artifactId>
+                                            <version>${spring.version}</version>
+                                        </dependency>
+
+                                        <dependency>
+                                            <groupId>org.springframework</groupId>
+                                            <artifactId>spring-test</artifactId>
+                                            <version>${spring.version}</version>
+                                        </dependency>
                                     </artifactItems>
                                 </configuration>
                             </execution>
