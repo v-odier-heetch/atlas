@@ -231,12 +231,6 @@ public class QuickStartRedshift {
     AtlasTypesDef createTypeDefinitions() {
         // Entity-Definitions
         /*
-        AtlasEntityDef sdTypeDef      = createClassTypeDef(STORAGE_DESC_TYPE, STORAGE_DESC_TYPE, VERSION_1, Collections.singleton("DataSet"),
-                createOptionalAttrDef("location", "string"),
-                createOptionalAttrDef("inputFormat", "string"),
-                createOptionalAttrDef("outputFormat", "string"),
-                createRequiredAttrDef("compressed", "boolean"));
-
         AtlasEntityDef processTypeDef = createClassTypeDef(LOAD_PROCESS_TYPE, LOAD_PROCESS_TYPE, VERSION_1, Collections.singleton("Process"),
                 createOptionalAttrDef("userName", "string"),
                 createOptionalAttrDef("startTime", "long"),
@@ -288,6 +282,12 @@ public class QuickStartRedshift {
 
          */
 
+        AtlasEntityDef sdTypeDef      = createClassTypeDef(STORAGE_DESC_TYPE, STORAGE_DESC_TYPE, VERSION_1, Collections.singleton("DataSet"),
+                createOptionalAttrDef("location", "string"),
+                createOptionalAttrDef("inputFormat", "string"),
+                createOptionalAttrDef("outputFormat", "string"),
+                createRequiredAttrDef("compressed", "boolean"));
+
         AtlasEntityDef dbTypeDef      = createClassTypeDef(DATABASE_TYPE, DATABASE_TYPE, VERSION_1, Collections.singleton("DataSet"),
                 createUniqueRequiredAttrDef("name", "string"),
                 createOptionalAttrDef("description", "string"),
@@ -332,7 +332,7 @@ public class QuickStartRedshift {
         List<AtlasClassificationDef> classificationDefs = asList(dimClassifDef, factClassifDef, piiClassifDef, metricClassifDef, etlClassifDef, jdbcClassifDef, logClassifDef);
 
 
-        List<AtlasEntityDef>         entityDefs         = asList(dbTypeDef, colTypeDef, tableTypeDef);
+        List<AtlasEntityDef>         entityDefs         = asList(dbTypeDef, sdTypeDef, colTypeDef, tableTypeDef);
         List<AtlasRelationshipDef>   relationshipDefs   = asList(tableDatabaseTypeDef);
 
         // Namespace definitions
