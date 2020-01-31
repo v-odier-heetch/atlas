@@ -62,42 +62,41 @@ LOGFILE="$ATLAS_LOG_DIR/import-redshift.log"
 
 TIME=`date +%Y%m%d%H%M%s`
 
-# #Add redshift conf in classpath
-# if [ ! -z "$REDSHIFT_CONF_DIR" ]; then
-#     REDSHIFT_CONF=$REDSHIFT_CONF_DIR
-# elif [ ! -z "$REDSHIFT_HOME" ]; then
-#     REDSHIFT_CONF="$REDSHIFT_HOME/conf"
-# elif [ -e /etc/redshift/conf ]; then
-#     REDSHIFT_CONF="/etc/redshift/conf"
-# else
-#     echo "Could not find a valid REDSHIFT configuration"
-#     exit 1
-# fi
+#Add redshift conf in classpath
+if [ ! -z "$REDSHIFT_CONF_DIR" ]; then
+    REDSHIFT_CONF=$REDSHIFT_CONF_DIR
+elif [ ! -z "$REDSHIFT_HOME" ]; then
+    REDSHIFT_CONF="$REDSHIFT_HOME/conf"
+elif [ -e /etc/redshift/conf ]; then
+    REDSHIFT_CONF="/etc/redshift/conf"
+else
+    echo "Could not find a valid REDSHIFT configuration"
+    exit 1
+fi
 
-# echo Using Redshift configuration directory ["$REDSHIFT_CONF"]
+echo Using Redshift configuration directory ["$REDSHIFT_CONF"]
 
 
-# if [ -f "${REDSHIFT_CONF}/redshift-env.sh" ]; then
-#   . "${REDSHIFT_CONF}/redshift-env.sh"
-# fi
+if [ -f "${REDSHIFT_CONF}/redshift-env.sh" ]; then
+  . "${REDSHIFT_CONF}/redshift-env.sh"
+fi
 
-# if [ -z "$REDSHIFT_HOME" ]; then
-#     if [ -d "${BASEDIR}/../redshift" ]; then
-#         REDSHIFT_HOME=${BASEDIR}/../redshift
-#     else
-#         echo "Please set REDSHIFT_HOME to the root of REDSHIFT installation"
-#         exit 1
-#     fi
-# fi
+if [ -z "$REDSHIFT_HOME" ]; then
+    if [ -d "${BASEDIR}/../redshift" ]; then
+        REDSHIFT_HOME=${BASEDIR}/../redshift
+    else
+        echo "Please set REDSHIFT_HOME to the root of REDSHIFT installation"
+        exit 1
+    fi
+fi
 
-# REDSHIFT_CP="${REDSHIFT_CONF}"
+REDSHIFT_CP="${REDSHIFT_CONF}"
 
-# for i in "${REDSHIFT_HOME}/lib/"*.jar; do
-#     REDSHIFT_CP="${REDSHIFT_CP}:$i"
-# done
+for i in "${REDSHIFT_HOME}/lib/"*.jar; do
+    REDSHIFT_CP="${REDSHIFT_CP}:$i"
+done
 
-# CP="${REDSHIFT_CP}:${ATLASCPPATH}"
-CP="${ATLASCPPATH}"
+CP="${REDSHIFT_CP}:${ATLASCPPATH}"
 
 # If running in cygwin, convert pathnames and classpath to Windows format.
 if [ "${CYGWIN}" == "true" ]
@@ -114,12 +113,28 @@ JAVA_PROPERTIES="$ATLAS_OPTS -Datlas.log.dir=$ATLAS_LOG_DIR -Datlas.log.file=imp
 IMPORT_ARGS=
 JVM_ARGS=
 
+while true
+do
+  option=$1
+  shift
+
+  case "$option" in
+    -d) IMPORT_ARGS="$IMPORT_ARGS -d $1"; shift;;
+    -t) IMPORT_ARGS="$IMPORT_ARGS -t $1"; shift;;
+    -f) IMPORT_ARGS="$IMPORT_ARGS -f $1"; shift;;
+    --database) IMPORT_ARGS="$IMPORT_ARGS --database $1"; shift;;
+    --table) IMPORT_ARGS="$IMPORT_ARGS --table $1"; shift;;
+    --filename) IMPORT_ARGS="$IMPORT_ARGS --filename $1"; shift;;
+    "") break;;
+    *) JVM_ARGS="$JVM_ARGS $option"
+  esac
+done
 
 JAVA_PROPERTIES="${JAVA_PROPERTIES} ${JVM_ARGS}"
 
 echo "Log file for import is $LOGFILE"
 
-"${JAVA_BIN}" ${JAVA_PROPERTIES} -jar /home/ubuntu/atlas-bin/bridge/redshift/redshift-bridge-3.0.0-SNAPSHOT.jar $IMPORT_ARGS
+"${JAVA_BIN}" ${JAVA_PROPERTIES} -cp "${CP}" org.apache.atlas.redshift.bridge.RedshiftBridge $IMPORT_ARGS
 
 RETVAL=$?
 [ $RETVAL -eq 0 ] && echo Redshift Meta Data imported successfully!!!

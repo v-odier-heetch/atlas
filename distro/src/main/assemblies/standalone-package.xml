@@ -153,13 +153,8 @@
         </fileSet>
 
         <fileSet>
-            <directory>../addons/redshift-bridge/target/dependency/bridge</directory>
-            <outputDirectory>bridge</outputDirectory>
-        </fileSet>
-
-        <fileSet>
-            <directory>../addons/redshift-bridge/target/dependency/hook</directory>
-            <outputDirectory>hook</outputDirectory>
+            <directory>../addons/redshift-bridge/target/dependency</directory>
+            <outputDirectory>bridge/redshift/dependency</outputDirectory>
         </fileSet>
 
         <!-- addons/hbase -->

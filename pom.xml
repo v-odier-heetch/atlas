@@ -2060,6 +2060,7 @@
                     <useEclipseDefaultExcludes>true</useEclipseDefaultExcludes>
                     <excludeSubProjects>true</excludeSubProjects>
                     <excludes>
+                        <exclude>Dockerfile</exclude>
                         <exclude>**/antlr4/**</exclude>
                         <exclude>**/dependency-reduced-pom.xml</exclude>
                         <exclude>**/javax.script.ScriptEngineFactory</exclude>
