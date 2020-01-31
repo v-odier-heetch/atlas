@@ -231,14 +231,6 @@ public class QuickStartRedshift {
     AtlasTypesDef createTypeDefinitions() {
         // Entity-Definitions
         /*
-
-
-        AtlasEntityDef colTypeDef     = createClassTypeDef(COLUMN_TYPE, COLUMN_TYPE, VERSION_1, Collections.singleton("DataSet"),
-                new HashMap<String, String>() {{ put("schemaAttributes", "[\"name\", \"description\", \"owner\", \"type\", \"comment\", \"position\"]"); }},
-                createOptionalAttrDef("name", "string"),
-                createOptionalAttrDef("dataType", "string"),
-                createOptionalAttrDef("comment", "string"));
-
         AtlasEntityDef sdTypeDef      = createClassTypeDef(STORAGE_DESC_TYPE, STORAGE_DESC_TYPE, VERSION_1, Collections.singleton("DataSet"),
                 createOptionalAttrDef("location", "string"),
                 createOptionalAttrDef("inputFormat", "string"),
@@ -314,6 +306,12 @@ public class QuickStartRedshift {
                 createOptionalAttrDef("tableType", "string"),
                 createOptionalAttrDef("temporary", "boolean"));
 
+        AtlasEntityDef colTypeDef     = createClassTypeDef(COLUMN_TYPE, COLUMN_TYPE, VERSION_1, Collections.singleton("DataSet"),
+                new HashMap<String, String>() {{ put("schemaAttributes", "[\"name\", \"description\", \"owner\", \"type\", \"comment\", \"position\"]"); }},
+                createOptionalAttrDef("name", "string"),
+                createOptionalAttrDef("dataType", "string"),
+                createOptionalAttrDef("comment", "string"));
+
 
 
         // Relationship-Definitions
@@ -334,7 +332,7 @@ public class QuickStartRedshift {
         List<AtlasClassificationDef> classificationDefs = asList(dimClassifDef, factClassifDef, piiClassifDef, metricClassifDef, etlClassifDef, jdbcClassifDef, logClassifDef);
 
 
-        List<AtlasEntityDef>         entityDefs         = asList(dbTypeDef, tableTypeDef);
+        List<AtlasEntityDef>         entityDefs         = asList(dbTypeDef, colTypeDef, tableTypeDef);
         List<AtlasRelationshipDef>   relationshipDefs   = asList(tableDatabaseTypeDef);
 
         // Namespace definitions
