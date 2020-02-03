@@ -151,11 +151,12 @@ public class QuickStartRedshift {
             TABLE_DATABASE_TYPE, VIEW_DATABASE_TYPE, VIEW_TABLES_TYPE, TABLE_COLUMNS_TYPE, TABLE_STORAGE_DESC_TYPE };
 
     public static void main(String[] args) throws Exception {
-        String[] basicAuthUsernamePassword = null;
+        //String[] basicAuthUsernamePassword = null;
+        String[] basicAuthUsernamePassword = {"admin", "admin"};
 
-        if (!AuthenticationUtil.isKerberosAuthenticationEnabled()) {
+        /*if (!AuthenticationUtil.isKerberosAuthenticationEnabled()) {
             basicAuthUsernamePassword = AuthenticationUtil.getBasicAuthenticationInput();
-        }
+        }*/
 
         runQuickstart(args, basicAuthUsernamePassword);
     }
@@ -174,6 +175,8 @@ public class QuickStartRedshift {
 
             // Shows how to create v2 types in Atlas for your meta model
             quickStartRedshift.createTypes();
+
+            //quickStartRedshift.deleteTypes();
 
             // Shows how to create v2 entities (instances) for the added types in Atlas
             //quickStartRedshift.createEntities();
@@ -283,7 +286,7 @@ public class QuickStartRedshift {
          */
 
         AtlasEntityDef sdTypeDef      = createClassTypeDef(STORAGE_DESC_TYPE, STORAGE_DESC_TYPE, VERSION_1, Collections.singleton("DataSet"),
-                createOptionalAttrDef("location", "string"),
+                createUniqueRequiredAttrDef("location", "string"),
                 createOptionalAttrDef("inputFormat", "string"),
                 createOptionalAttrDef("outputFormat", "string"),
                 createRequiredAttrDef("compressed", "boolean"));
@@ -297,6 +300,7 @@ public class QuickStartRedshift {
 
         AtlasEntityDef tableTypeDef   = createClassTypeDef(TABLE_TYPE, TABLE_TYPE, VERSION_1, Collections.singleton("DataSet"),
                 new HashMap<String, String>() {{ put("schemaElementsAttribute", "columns"); }} ,
+                createOptionalAttrDef("name", "string"),
                 createOptionalAttrDef("owner", "string"),
                 createOptionalAttrDef("createTime", "long"),
                 createOptionalAttrDef("lastAccessTime", "long"),
@@ -319,6 +323,10 @@ public class QuickStartRedshift {
                 createRelationshipEndDef(TABLE_TYPE, "db", SINGLE, false),
                 createRelationshipEndDef(DATABASE_TYPE, "tables", SET, true));
 
+        AtlasRelationshipDef tableColumnsTypeDef             = createRelationshipTypeDef(TABLE_COLUMNS_TYPE, TABLE_COLUMNS_TYPE, VERSION_1, COMPOSITION, PropagateTags.NONE,
+                createRelationshipEndDef(TABLE_TYPE, "columns", SET, true),
+                createRelationshipEndDef(COLUMN_TYPE, "table", SINGLE, false));
+
 
         // Classification-Definitions
         AtlasClassificationDef dimClassifDef    = createTraitTypeDef(DIMENSION_CLASSIFICATION,  "Dimension Classification", VERSION_1, Collections.emptySet());
@@ -333,7 +341,7 @@ public class QuickStartRedshift {
 
 
         List<AtlasEntityDef>         entityDefs         = asList(dbTypeDef, sdTypeDef, colTypeDef, tableTypeDef);
-        List<AtlasRelationshipDef>   relationshipDefs   = asList(tableDatabaseTypeDef);
+        List<AtlasRelationshipDef>   relationshipDefs   = asList(tableDatabaseTypeDef, tableColumnsTypeDef);
 
         // Namespace definitions
         AtlasAttributeDef nsAttrDef1 = new AtlasAttributeDef("attr1", "int");
@@ -654,6 +662,23 @@ public class QuickStartRedshift {
             assert (!searchDefs.isEmpty());
 
             System.out.println("Created type [" + typeName + "]");
+        }
+    }
+
+    private void deleteTypes() throws Exception {
+        MultivaluedMap<String, String> searchParams = new MultivaluedMapImpl();
+
+        for (String typeName : TYPES) {
+            searchParams.clear();
+            searchParams.add(SearchFilter.PARAM_NAME, typeName);
+
+            SearchFilter  searchFilter = new SearchFilter(searchParams);
+            AtlasTypesDef searchDefs   = atlasClientV2.getAllTypeDefs(searchFilter);
+            atlasClientV2.deleteAtlasTypeDefs(searchDefs);
+
+            assert (!searchDefs.isEmpty());
+
+            System.out.println("Deleted type [" + typeName + "]");
         }
     }
 

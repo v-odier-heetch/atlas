@@ -18,20 +18,38 @@
 
 package org.apache.atlas.redshift.bridge;
 
+import com.sun.jersey.api.client.ClientResponse;
 import org.apache.atlas.ApplicationProperties;
-import org.apache.atlas.AtlasClientV2; // OK
-import org.apache.atlas.model.instance.AtlasEntity; // ok
-import org.apache.atlas.model.instance.AtlasEntity.AtlasEntityWithExtInfo; // ok
-import org.apache.atlas.model.instance.EntityMutationResponse; // ok
-import org.apache.atlas.utils.AuthenticationUtil; // ok
+import org.apache.atlas.AtlasClientV2;
+import org.apache.atlas.AtlasServiceException;
+import org.apache.atlas.model.instance.*;
+import org.apache.atlas.model.instance.AtlasEntity.AtlasEntityWithExtInfo;
+import org.apache.atlas.redshift.model.SvvColumn;
+import org.apache.atlas.utils.AuthenticationUtil;
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException; // ok
-import org.apache.commons.configuration.Configuration; // ok
-import org.apache.hadoop.security.UserGroupInformation; // ok
-import org.slf4j.Logger; // ok
-import org.slf4j.LoggerFactory; // ok
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.configuration.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
+import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
+import static org.apache.atlas.AtlasClient.REFERENCEABLE_ATTRIBUTE_NAME;
+import static org.apache.atlas.type.AtlasTypeUtil.toAtlasRelatedObjectId;
+import static org.apache.atlas.type.AtlasTypeUtil.toAtlasRelatedObjectIds;
 
 public class RedshiftBridge {
     private static final Logger LOG = LoggerFactory.getLogger(RedshiftBridge.class);
@@ -55,27 +73,55 @@ public class RedshiftBridge {
     private final String metadataNamespace;
     private final AtlasClientV2 atlasClientV2;
 
-    /*public static void main(String[] args) {
-        System.out.println("Entry");
-        Connection connection = null;
-        Statement statement = null;
+    public static final String ATLAS_REST_ADDRESS          = "atlas.rest.address";
 
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setDriverClassName(redshiftDriver);
-        dataSource.setUrl(redshiftUrl);
-        dataSource.setUsername(masterUsername);
-        dataSource.setPassword(password);
+    public static final String SALES_DB                    = "Sales";
+    public static final String REPORTING_DB                = "Reporting";
+    public static final String LOGGING_DB                  = "Logging";
 
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-        String sql = "SELECT country_id FROM backend.cities WHERE name = 'Lyon'";
+    public static final String SALES_FACT_TABLE            = "sales_fact";
+    public static final String PRODUCT_DIM_TABLE           = "product_dim";
+    public static final String CUSTOMER_DIM_TABLE          = "customer_dim";
+    public static final String TIME_DIM_TABLE              = "time_dim";
+    public static final String SALES_FACT_DAILY_MV_TABLE   = "sales_fact_daily_mv";
+    public static final String SALES_FACT_MONTHLY_MV_TABLE = "sales_fact_monthly_mv";
+    public static final String LOG_FACT_DAILY_MV_TABLE     = "log_fact_daily_mv";
+    public static final String LOG_FACT_MONTHLY_MV_TABLE   = "logging_fact_monthly_mv";
 
-        //String name =  jdbcTemplate.queryForObject(sql, String.class);
-        // Further code to follow
+    public static final String TIME_ID_COLUMN              = "time_id";
+    public static final String PRODUCT_ID_COLUMN           = "product_id";
+    public static final String CUSTOMER_ID_COLUMN          = "customer_id";
+    public static final String APP_ID_COLUMN               = "app_id";
+    public static final String MACHINE_ID_COLUMN           = "machine_id";
+    public static final String PRODUCT_NAME_COLUMN         = "product_name";
+    public static final String BRAND_NAME_COLUMN           = "brand_name";
+    public static final String NAME_COLUMN                 = "name";
+    public static final String SALES_COLUMN                = "sales";
+    public static final String LOG_COLUMN                  = "log";
+    public static final String ADDRESS_COLUMN              = "address";
+    public static final String DAY_OF_YEAR_COLUMN          = "dayOfYear";
+    public static final String WEEKDAY_COLUMN              = "weekDay";
 
+    public static final String DIMENSION_CLASSIFICATION    = "Dimension";
+    public static final String FACT_CLASSIFICATION         = "Fact";
+    public static final String PII_CLASSIFICATION          = "PII";
+    public static final String METRIC_CLASSIFICATION       = "Metric";
+    public static final String ETL_CLASSIFICATION          = "ETL";
+    public static final String JDBC_CLASSIFICATION         = "JdbcAccess";
+    public static final String LOGDATA_CLASSIFICATION      = "Log Data";
 
+    public static final String DATABASE_TYPE               = "DB";
+    public static final String COLUMN_TYPE                 = "Column";
+    public static final String TABLE_TYPE                  = "Table";
+    public static final String STORAGE_DESC_TYPE           = "StorageDesc";
 
-        System.out.println("Exit");
-    }*/
+    public static final String MANAGED_TABLE               = "Managed";
+    public static final String EXTERNAL_TABLE              = "External";
+    public static final String CLUSTER_SUFFIX              = "@cl1";
+
+    public static final String[] TYPES = { DATABASE_TYPE, TABLE_TYPE, STORAGE_DESC_TYPE, COLUMN_TYPE,
+            JDBC_CLASSIFICATION, ETL_CLASSIFICATION, METRIC_CLASSIFICATION, PII_CLASSIFICATION, FACT_CLASSIFICATION,
+            DIMENSION_CLASSIFICATION, LOGDATA_CLASSIFICATION};
 
     public static void main(String[] args) {
         int exitCode = EXIT_CODE_FAILED;
@@ -112,47 +158,28 @@ public class RedshiftBridge {
             }
 
             RedshiftBridge redshiftBridge = new RedshiftBridge(atlasConf, atlasClientV2);
+            // Search tables
+            System.out.println("Searching entities ...");
+            List<SvvColumn> columns = redshiftBridge.getAll(redshiftBridge.getJdbcTemplate());
 
-            // search tables
+            // Create Entities
+            System.out.println("Registering Entities ...");
+            redshiftBridge.registerEntities(columns);
 
-            AtlasEntityWithExtInfo entity = new AtlasEntityWithExtInfo(toDbEntity(null));
-            EntityMutationResponse response        = atlasClientV2.createEntity(entity);
-
-            System.out.println(response.toString());
 
             exitCode = EXIT_CODE_SUCCESS;
         } catch(ParseException e) {
-            LOG.error("Failed to parse arguments. Error: ", e.getMessage());
+            System.out.println("Failed to parse arguments. Error: " + e.getMessage());
             printUsage();
         } catch(Exception e) {
-            LOG.error("Import failed", e);
+            System.out.println("Import failed" +  e.toString());
         } finally {
             if( atlasClientV2 !=null) {
                 atlasClientV2.close();
             }
         }
-        System.out.println("Success !");
         System.exit(exitCode);
     }
-
-
-    private AtlasEntity toDbEntity() {
-        return toDbEntity(null);
-    }
-
-    private static AtlasEntity toDbEntity(AtlasEntity dbEntity) {
-        if (dbEntity == null) {
-            dbEntity = new AtlasEntity("Redshift DB");
-        }
-
-        dbEntity.setAttribute("qualifiedName", "namespace DB");
-        dbEntity.setAttribute("name", "backend");
-        dbEntity.setAttribute("description", "this is a description");
-        dbEntity.setAttribute("owner", "this is the owner");
-
-        return dbEntity;
-    }
-
     public RedshiftBridge(Configuration atlasConf, AtlasClientV2 atlasClientV2) {
         this.metadataNamespace = getMetadataNamespace(atlasConf);
         this.atlasClientV2 = atlasClientV2;
@@ -185,5 +212,336 @@ public class RedshiftBridge {
         System.out.println("    database1:tbl2");
         System.out.println("    database2:tbl2");
         System.out.println();
+    }
+
+    private JdbcTemplate getJdbcTemplate() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName(redshiftDriver);
+        dataSource.setUrl(redshiftUrl);
+        dataSource.setUsername(masterUsername);
+        dataSource.setPassword(password);
+
+        return new JdbcTemplate(dataSource);
+    }
+
+    private List<SvvColumn> getAll(JdbcTemplate jdbcTemplate) {
+        String sql = "SELECT SVV_TABLES.table_type, \n" +
+                "        SVV_TABLES.remarks as table_remarks,\n" +
+                "        SVV_TABLES.table_catalog as catalog,\n" +
+                "        SVV_TABLES.table_schema as schema,\n" +
+                "        SVV_COLUMNS.table_name,\n" +
+                "        SVV_COLUMNS.column_name,\n" +
+                "        SVV_COLUMNS.ordinal_position,\n" +
+                "        SVV_COLUMNS.column_default,\n" +
+                "        SVV_COLUMNS.is_nullable,\n" +
+                "        SVV_COLUMNS.data_type,\n" +
+                "        SVV_COLUMNS.character_maximum_length,\n" +
+                "        SVV_COLUMNS.numeric_precision,\n" +
+                "        SVV_COLUMNS.numeric_precision_radix,\n" +
+                "        SVV_COLUMNS.numeric_scale,\n" +
+                "        SVV_COLUMNS.datetime_precision,\n" +
+                "        SVV_COLUMNS.interval_type,\n" +
+                "        SVV_COLUMNS.interval_precision,\n" +
+                "        SVV_COLUMNS.character_set_catalog,\n" +
+                "        SVV_COLUMNS.character_set_schema,\n" +
+                "        SVV_COLUMNS.character_set_name,\n" +
+                "        SVV_COLUMNS.collation_catalog,\n" +
+                "        SVV_COLUMNS.collation_schema,\n" +
+                "        SVV_COLUMNS.collation_name,\n" +
+                "        SVV_COLUMNS.domain_name,\n" +
+                "        SVV_COLUMNS.remarks as column_remarks\n" +
+                "FROM SVV_COLUMNS\n" +
+                "JOIN SVV_TABLES ON SVV_TABLES.table_catalog = SVV_COLUMNS.table_catalog\n" +
+                "    AND SVV_TABLES.table_schema = SVV_COLUMNS.table_schema\n" +
+                "    AND SVV_TABLES.table_name = SVV_COLUMNS.table_name\n" +
+                "WHERE SVV_COLUMNS.TABLE_CATALOG = 'analytics'\n" +
+                "AND SVV_COLUMNS.TABLE_SCHEMA = 'backend'";
+
+        return  jdbcTemplate.query(sql, new BeanPropertyRowMapper(SvvColumn.class));
+    }
+
+    public static <T> Predicate<T> distinctByKey(
+            Function<? super T, ?> keyExtractor) {
+
+        Map<Object, Boolean> seen = new ConcurrentHashMap<>();
+        return t -> {
+            return seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
+        };
+    }
+
+    private void registerEntities(List<SvvColumn> columns) throws Exception {
+        // Create Schema Entities
+        columns.stream()
+                .collect(groupingBy(c -> new AbstractMap.SimpleEntry<>(c.getSchema(), c.getTable_name())))
+                .forEach((k, v) -> {
+                    try {
+                        AtlasEntity database = registerDatabase(k.getKey(), k.getKey(), "Data Hub", redshiftUrl);
+                        String databaseName = k.getKey();
+                        String tableName = v.get(0).getTable_name();
+
+                        List<AtlasEntity> columnsEntities = v.stream()
+                                .map(i -> {
+                                    try {
+
+                                        String columnName = i.getColumn_name();
+                                        String qualifiedName = new StringBuilder()
+                                                                .append(databaseName)
+                                                                .append(".")
+                                                                .append(tableName)
+                                                                .append(".")
+                                                                .append(columnName)
+                                                                .toString();
+                                        return registerColumn(i.getColumn_name(), i.getData_type(), i.getColumn_remarks(), qualifiedName);
+                                    } catch (AtlasServiceException e) {
+                                        e.printStackTrace();
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                    return null;
+                                })
+                                .collect(toList());
+
+                        String qualifiedName = new StringBuilder()
+                                .append(databaseName)
+                                .append(".")
+                                .append(tableName)
+                                .toString();
+
+                        registerTable(v.get(0).getTable_name(), v.get(0).getTable_remarks(), database, "Data Hub", v.get(0).getTable_type(),
+                                columnsEntities,
+                                qualifiedName,
+                                DIMENSION_CLASSIFICATION);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+    }
+
+    AtlasEntity registerDatabase(String name, String description, String owner, String locationUri, String... classificationNames) throws Exception {
+        AtlasEntity database = findDatabase(name);
+
+        if(database == null) {
+            database =  createDatabase(name, description, owner, locationUri, classificationNames);
+        }
+        return database;
+    }
+
+    AtlasEntity registerColumn(String name, String dataType, String comment, String qualifiedName, String... classificationNames) throws Exception {
+        AtlasEntity column = findColumn(qualifiedName);
+
+        if(column == null) {
+            column =  createColumn(name, dataType, comment, qualifiedName, classificationNames);
+        }
+        return column;
+    }
+
+    AtlasEntity registerTable(String name, String description, AtlasEntity database, String owner, String tableType,
+                            List<AtlasEntity> columns, String qualifiedName, String... classificationNames) throws Exception {
+        AtlasEntity column = findTable(qualifiedName);
+
+        if(column == null) {
+            column =  createTable(name, description, database, owner, tableType, columns, qualifiedName, classificationNames);
+        }
+        return column;
+
+    }
+
+    AtlasEntity registerStorageDescriptor(String location, String inputFormat, String outputFormat, boolean compressed) throws Exception {
+        AtlasEntity storageDescriptor = findStorageDescriptor(location);
+
+        if(storageDescriptor == null) {
+            storageDescriptor =  createStorageDescriptor(location, inputFormat, outputFormat, compressed);
+        }
+        return storageDescriptor;
+
+    }
+
+    private AtlasEntity findStorageDescriptor(String location) throws AtlasServiceException {
+        return findEntity(STORAGE_DESC_TYPE, Collections.singletonMap("location", location));
+    }
+
+    private AtlasEntity findDatabase(String dbName) throws AtlasServiceException {
+        return findEntity(DATABASE_TYPE, Collections.singletonMap("name", dbName));
+    }
+
+    private AtlasEntity findColumn(String qualifiedName) throws AtlasServiceException {
+        return findEntity(COLUMN_TYPE, Collections.singletonMap(REFERENCEABLE_ATTRIBUTE_NAME, qualifiedName));
+    }
+
+    private AtlasEntity findTable(String qualifiedName) throws AtlasServiceException {
+        return findEntity(TABLE_TYPE, Collections.singletonMap(REFERENCEABLE_ATTRIBUTE_NAME, qualifiedName));
+    }
+
+    private AtlasEntity findEntity(String typeName, Map<String, String> uniqAttributes) throws AtlasServiceException {
+        AtlasEntityWithExtInfo ret = null;
+
+        try {
+            ret = atlasClientV2.getEntityByAttribute(typeName, uniqAttributes);
+        } catch (AtlasServiceException e) {
+            if(e.getStatus() == ClientResponse.Status.NOT_FOUND) {
+                return null;
+            }
+
+            throw e;
+        }
+
+        clearRelationshipAttributes(ret);
+
+        return ret.getEntity();
+    }
+
+    private void clearRelationshipAttributes(AtlasEntity.AtlasEntitiesWithExtInfo entities) {
+        if (entities != null) {
+            if (entities.getEntities() != null) {
+                for (AtlasEntity entity : entities.getEntities()) {
+                    clearRelationshipAttributes(entity);;
+                }
+            }
+
+            if (entities.getReferredEntities() != null) {
+                clearRelationshipAttributes(entities.getReferredEntities().values());
+            }
+        }
+    }
+
+    private void clearRelationshipAttributes(AtlasEntityWithExtInfo entity) {
+        if (entity != null) {
+            clearRelationshipAttributes(entity.getEntity());
+
+            if (entity.getReferredEntities() != null) {
+                clearRelationshipAttributes(entity.getReferredEntities().values());
+            }
+        }
+    }
+
+    private void clearRelationshipAttributes(Collection<AtlasEntity> entities) {
+        if (entities != null) {
+            for (AtlasEntity entity : entities) {
+                clearRelationshipAttributes(entity);
+            }
+        }
+    }
+
+    private void clearRelationshipAttributes(AtlasEntity entity) {
+        if (entity != null && entity.getRelationshipAttributes() != null) {
+            entity.getRelationshipAttributes().clear();
+        }
+    }
+
+    AtlasEntity createDatabase(String name, String description, String owner, String locationUri, String... classificationNames) throws Exception {
+        AtlasEntity entity = new AtlasEntity(DATABASE_TYPE);
+
+        // set attributes
+        entity.setAttribute("name", name);
+        entity.setAttribute(REFERENCEABLE_ATTRIBUTE_NAME, name + CLUSTER_SUFFIX);
+        entity.setAttribute("description", description);
+        entity.setAttribute("owner", owner);
+        entity.setAttribute("locationuri", locationUri);
+        entity.setAttribute("createTime", System.currentTimeMillis());
+
+        // set classifications
+        entity.setClassifications(toAtlasClassifications(classificationNames));
+
+        return createInstance(entity);
+    }
+
+    AtlasEntity createTable(String name, String description, AtlasEntity database, String owner, String tableType,
+                            List<AtlasEntity> columns, String qualifiedName, String... classificationNames) throws Exception {
+        AtlasEntity tblEntity = new AtlasEntity(TABLE_TYPE);
+
+        // set attributes
+        tblEntity.setAttribute("name", name);
+        tblEntity.setAttribute(REFERENCEABLE_ATTRIBUTE_NAME, qualifiedName);
+        tblEntity.setAttribute("description", description);
+        tblEntity.setAttribute("owner", owner);
+        tblEntity.setAttribute("tableType", tableType);
+        tblEntity.setAttribute("createTime", System.currentTimeMillis());
+        tblEntity.setAttribute("lastAccessTime", System.currentTimeMillis());
+        tblEntity.setAttribute("retention", System.currentTimeMillis());
+
+        // set relationship attributes
+        AtlasEntity storageDesc = registerStorageDescriptor(redshiftUrl, "TextInputFormat", "TextOutputFormat", true);
+        storageDesc.setRelationshipAttribute("table", toAtlasRelatedObjectId(tblEntity));
+
+        tblEntity.setRelationshipAttribute("db", toAtlasRelatedObjectId(database));
+        tblEntity.setRelationshipAttribute("sd", toAtlasRelatedObjectId(storageDesc));
+        tblEntity.setRelationshipAttribute("columns", toAtlasRelatedObjectIds(columns));
+
+        // set classifications
+        tblEntity.setClassifications(toAtlasClassifications(classificationNames));
+
+        AtlasEntityWithExtInfo entityWithExtInfo = new AtlasEntityWithExtInfo();
+
+        entityWithExtInfo.setEntity(tblEntity);
+        entityWithExtInfo.addReferredEntity(storageDesc);
+
+        for (AtlasEntity column : columns) {
+            column.setRelationshipAttribute("table", toAtlasRelatedObjectId(tblEntity));
+
+            entityWithExtInfo.addReferredEntity(column);
+        }
+
+        return createInstance(entityWithExtInfo);
+    }
+
+    AtlasEntity createStorageDescriptor(String location, String inputFormat, String outputFormat, boolean compressed) throws Exception {
+        AtlasEntity ret = new AtlasEntity(STORAGE_DESC_TYPE);
+
+        ret.setAttribute("name", "sd:" + location);
+        ret.setAttribute(REFERENCEABLE_ATTRIBUTE_NAME, "sd:" + location + CLUSTER_SUFFIX);
+        ret.setAttribute("location", location);
+        ret.setAttribute("inputFormat", inputFormat);
+        ret.setAttribute("outputFormat", outputFormat);
+        ret.setAttribute("compressed", compressed);
+
+        return createInstance(ret);
+    }
+
+    AtlasEntity createColumn(String name, String dataType, String comment, String qualifiedName, String... classificationNames) throws Exception {
+        AtlasEntity ret = new AtlasEntity(COLUMN_TYPE);
+
+        // set attributes
+        ret.setAttribute("name", name);
+        ret.setAttribute(REFERENCEABLE_ATTRIBUTE_NAME, qualifiedName);
+        ret.setAttribute("dataType", dataType);
+        ret.setAttribute("comment", comment);
+
+        // set classifications
+        ret.setClassifications(toAtlasClassifications(classificationNames));
+
+        return createInstance(ret);
+    }
+
+    private List<AtlasClassification> toAtlasClassifications(String[] classificationNames) {
+        List<AtlasClassification> ret             = new ArrayList<>();
+        List<String>              classifications = asList(classificationNames);
+
+        if (CollectionUtils.isNotEmpty(classifications)) {
+            for (String classificationName : classifications) {
+                ret.add(new AtlasClassification(classificationName));
+            }
+        }
+
+        return ret;
+    }
+
+    private AtlasEntity createInstance(AtlasEntity entity) throws Exception {
+        return createInstance(new AtlasEntityWithExtInfo(entity));
+    }
+
+    private AtlasEntity createInstance(AtlasEntityWithExtInfo entityWithExtInfo) throws Exception {
+        AtlasEntity             ret      = null;
+        EntityMutationResponse  response = atlasClientV2.createEntity(entityWithExtInfo);
+        List<AtlasEntityHeader> entities = response.getEntitiesByOperation(EntityMutations.EntityOperation.CREATE);
+
+        if (CollectionUtils.isNotEmpty(entities)) {
+            AtlasEntityWithExtInfo getByGuidResponse = atlasClientV2.getEntityByGuid(entities.get(0).getGuid());
+
+            ret = getByGuidResponse.getEntity();
+
+            System.out.println("Created entity of type [" + ret.getTypeName() + "], guid: " + ret.getGuid());
+        }
+
+        return ret;
     }
 }
