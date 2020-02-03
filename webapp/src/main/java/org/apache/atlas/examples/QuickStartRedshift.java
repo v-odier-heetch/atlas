@@ -319,6 +319,10 @@ public class QuickStartRedshift {
 
 
         // Relationship-Definitions
+        AtlasRelationshipDef tableStorageDescTypeDef         = createRelationshipTypeDef(TABLE_STORAGE_DESC_TYPE, TABLE_STORAGE_DESC_TYPE, VERSION_1, COMPOSITION, PropagateTags.NONE,
+                createRelationshipEndDef(TABLE_TYPE, "sd", SINGLE, true),
+                createRelationshipEndDef(STORAGE_DESC_TYPE, "table", SINGLE, false));
+
         AtlasRelationshipDef tableDatabaseTypeDef            = createRelationshipTypeDef(TABLE_DATABASE_TYPE, TABLE_DATABASE_TYPE, VERSION_1, AGGREGATION, PropagateTags.NONE,
                 createRelationshipEndDef(TABLE_TYPE, "db", SINGLE, false),
                 createRelationshipEndDef(DATABASE_TYPE, "tables", SET, true));
@@ -341,7 +345,7 @@ public class QuickStartRedshift {
 
 
         List<AtlasEntityDef>         entityDefs         = asList(dbTypeDef, sdTypeDef, colTypeDef, tableTypeDef);
-        List<AtlasRelationshipDef>   relationshipDefs   = asList(tableDatabaseTypeDef, tableColumnsTypeDef);
+        List<AtlasRelationshipDef>   relationshipDefs   = asList(tableStorageDescTypeDef, tableDatabaseTypeDef, tableColumnsTypeDef);
 
         // Namespace definitions
         AtlasAttributeDef nsAttrDef1 = new AtlasAttributeDef("attr1", "int");

@@ -18,6 +18,9 @@
 
 package org.apache.atlas.redshift.bridge;
 
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.sun.jersey.api.client.ClientResponse;
 import org.apache.atlas.ApplicationProperties;
 import org.apache.atlas.AtlasClientV2;
@@ -39,6 +42,9 @@ import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -162,6 +168,8 @@ public class RedshiftBridge {
             System.out.println("Searching entities ...");
             List<SvvColumn> columns = redshiftBridge.getAll(redshiftBridge.getJdbcTemplate());
 
+            // load from CSV
+            //List<SvvColumn> columns = redshiftBridge.fromCsv();
             // Create Entities
             System.out.println("Registering Entities ...");
             redshiftBridge.registerEntities(columns);
@@ -180,6 +188,18 @@ public class RedshiftBridge {
         }
         System.exit(exitCode);
     }
+
+    private List<SvvColumn> fromCsv() throws IOException {
+        File csvFile = new File("/home/chongyk/works/heetch/atlas-fork/atlas/addons/redshift-bridge/src/main/resources/redshift_with_header.csv");
+        CsvSchema schema = CsvSchema.emptySchema().withHeader();
+        MappingIterator<SvvColumn> personIter = new CsvMapper()
+                .readerWithTypedSchemaFor(SvvColumn.class)
+                .with(schema)
+                .readValues(csvFile);
+
+        return personIter.readAll();
+    }
+
     public RedshiftBridge(Configuration atlasConf, AtlasClientV2 atlasClientV2) {
         this.metadataNamespace = getMetadataNamespace(atlasConf);
         this.atlasClientV2 = atlasClientV2;
@@ -260,15 +280,6 @@ public class RedshiftBridge {
         return  jdbcTemplate.query(sql, new BeanPropertyRowMapper(SvvColumn.class));
     }
 
-    public static <T> Predicate<T> distinctByKey(
-            Function<? super T, ?> keyExtractor) {
-
-        Map<Object, Boolean> seen = new ConcurrentHashMap<>();
-        return t -> {
-            return seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
-        };
-    }
-
     private void registerEntities(List<SvvColumn> columns) throws Exception {
         // Create Schema Entities
         columns.stream()
@@ -279,19 +290,31 @@ public class RedshiftBridge {
                         String databaseName = k.getKey();
                         String tableName = v.get(0).getTable_name();
 
+                        String tableQualifiedName = new StringBuilder()
+                                .append(databaseName)
+                                .append(".")
+                                .append(tableName)
+                                .toString();
+
+                        AtlasEntity tableEntity = registerTable(v.get(0).getTable_name(), v.get(0).getTable_remarks(), database, "Data Hub", v.get(0).getTable_type(),
+                                tableQualifiedName,
+                                DIMENSION_CLASSIFICATION);
+
+
+                        AtlasEntity storageDesc = registerStorageDescriptor(redshiftUrl, "TextInputFormat", "TextOutputFormat", true, tableEntity);
+
                         List<AtlasEntity> columnsEntities = v.stream()
                                 .map(i -> {
                                     try {
-
                                         String columnName = i.getColumn_name();
                                         String qualifiedName = new StringBuilder()
-                                                                .append(databaseName)
-                                                                .append(".")
-                                                                .append(tableName)
-                                                                .append(".")
-                                                                .append(columnName)
-                                                                .toString();
-                                        return registerColumn(i.getColumn_name(), i.getData_type(), i.getColumn_remarks(), qualifiedName);
+                                                .append(databaseName)
+                                                .append(".")
+                                                .append(tableName)
+                                                .append(".")
+                                                .append(columnName)
+                                                .toString();
+                                        return registerColumn(i.getColumn_name(), i.getData_type(), i.getColumn_remarks(), qualifiedName, tableEntity);
                                     } catch (AtlasServiceException e) {
                                         e.printStackTrace();
                                     } catch (Exception e) {
@@ -301,16 +324,6 @@ public class RedshiftBridge {
                                 })
                                 .collect(toList());
 
-                        String qualifiedName = new StringBuilder()
-                                .append(databaseName)
-                                .append(".")
-                                .append(tableName)
-                                .toString();
-
-                        registerTable(v.get(0).getTable_name(), v.get(0).getTable_remarks(), database, "Data Hub", v.get(0).getTable_type(),
-                                columnsEntities,
-                                qualifiedName,
-                                DIMENSION_CLASSIFICATION);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -326,31 +339,31 @@ public class RedshiftBridge {
         return database;
     }
 
-    AtlasEntity registerColumn(String name, String dataType, String comment, String qualifiedName, String... classificationNames) throws Exception {
+    AtlasEntity registerColumn(String name, String dataType, String comment, String qualifiedName, AtlasEntity tableEntity, String... classificationNames) throws Exception {
         AtlasEntity column = findColumn(qualifiedName);
 
         if(column == null) {
-            column =  createColumn(name, dataType, comment, qualifiedName, classificationNames);
+            column =  createColumn(name, dataType, comment, qualifiedName, tableEntity, classificationNames);
         }
         return column;
     }
+
 
     AtlasEntity registerTable(String name, String description, AtlasEntity database, String owner, String tableType,
-                            List<AtlasEntity> columns, String qualifiedName, String... classificationNames) throws Exception {
-        AtlasEntity column = findTable(qualifiedName);
+                            String qualifiedName, String... classificationNames) throws Exception {
+        AtlasEntity table = findTable(qualifiedName);
 
-        if(column == null) {
-            column =  createTable(name, description, database, owner, tableType, columns, qualifiedName, classificationNames);
+        if(table == null) {
+            table =  createTable(name, description, database, owner, tableType, qualifiedName, classificationNames);
         }
-        return column;
-
+        return table;
     }
 
-    AtlasEntity registerStorageDescriptor(String location, String inputFormat, String outputFormat, boolean compressed) throws Exception {
+    AtlasEntity registerStorageDescriptor(String location, String inputFormat, String outputFormat, boolean compressed, AtlasEntity tblEntity) throws Exception {
         AtlasEntity storageDescriptor = findStorageDescriptor(location);
 
         if(storageDescriptor == null) {
-            storageDescriptor =  createStorageDescriptor(location, inputFormat, outputFormat, compressed);
+            storageDescriptor =  createStorageDescriptor(location, inputFormat, outputFormat, compressed, tblEntity);
         }
         return storageDescriptor;
 
@@ -388,20 +401,6 @@ public class RedshiftBridge {
         clearRelationshipAttributes(ret);
 
         return ret.getEntity();
-    }
-
-    private void clearRelationshipAttributes(AtlasEntity.AtlasEntitiesWithExtInfo entities) {
-        if (entities != null) {
-            if (entities.getEntities() != null) {
-                for (AtlasEntity entity : entities.getEntities()) {
-                    clearRelationshipAttributes(entity);;
-                }
-            }
-
-            if (entities.getReferredEntities() != null) {
-                clearRelationshipAttributes(entities.getReferredEntities().values());
-            }
-        }
     }
 
     private void clearRelationshipAttributes(AtlasEntityWithExtInfo entity) {
@@ -446,7 +445,8 @@ public class RedshiftBridge {
     }
 
     AtlasEntity createTable(String name, String description, AtlasEntity database, String owner, String tableType,
-                            List<AtlasEntity> columns, String qualifiedName, String... classificationNames) throws Exception {
+                            String qualifiedName, String... classificationNames) throws Exception {
+
         AtlasEntity tblEntity = new AtlasEntity(TABLE_TYPE);
 
         // set attributes
@@ -459,32 +459,15 @@ public class RedshiftBridge {
         tblEntity.setAttribute("lastAccessTime", System.currentTimeMillis());
         tblEntity.setAttribute("retention", System.currentTimeMillis());
 
-        // set relationship attributes
-        AtlasEntity storageDesc = registerStorageDescriptor(redshiftUrl, "TextInputFormat", "TextOutputFormat", true);
-        storageDesc.setRelationshipAttribute("table", toAtlasRelatedObjectId(tblEntity));
-
         tblEntity.setRelationshipAttribute("db", toAtlasRelatedObjectId(database));
-        tblEntity.setRelationshipAttribute("sd", toAtlasRelatedObjectId(storageDesc));
-        tblEntity.setRelationshipAttribute("columns", toAtlasRelatedObjectIds(columns));
 
         // set classifications
         tblEntity.setClassifications(toAtlasClassifications(classificationNames));
 
-        AtlasEntityWithExtInfo entityWithExtInfo = new AtlasEntityWithExtInfo();
-
-        entityWithExtInfo.setEntity(tblEntity);
-        entityWithExtInfo.addReferredEntity(storageDesc);
-
-        for (AtlasEntity column : columns) {
-            column.setRelationshipAttribute("table", toAtlasRelatedObjectId(tblEntity));
-
-            entityWithExtInfo.addReferredEntity(column);
-        }
-
-        return createInstance(entityWithExtInfo);
+        return createInstance(tblEntity);
     }
 
-    AtlasEntity createStorageDescriptor(String location, String inputFormat, String outputFormat, boolean compressed) throws Exception {
+    AtlasEntity createStorageDescriptor(String location, String inputFormat, String outputFormat, boolean compressed, AtlasEntity tblEntity) throws Exception {
         AtlasEntity ret = new AtlasEntity(STORAGE_DESC_TYPE);
 
         ret.setAttribute("name", "sd:" + location);
@@ -494,10 +477,12 @@ public class RedshiftBridge {
         ret.setAttribute("outputFormat", outputFormat);
         ret.setAttribute("compressed", compressed);
 
+        ret.setRelationshipAttribute("table", toAtlasRelatedObjectId(tblEntity));
+
         return createInstance(ret);
     }
 
-    AtlasEntity createColumn(String name, String dataType, String comment, String qualifiedName, String... classificationNames) throws Exception {
+    AtlasEntity createColumn(String name, String dataType, String comment, String qualifiedName, AtlasEntity tableEntity, String... classificationNames) throws Exception {
         AtlasEntity ret = new AtlasEntity(COLUMN_TYPE);
 
         // set attributes
@@ -505,6 +490,9 @@ public class RedshiftBridge {
         ret.setAttribute(REFERENCEABLE_ATTRIBUTE_NAME, qualifiedName);
         ret.setAttribute("dataType", dataType);
         ret.setAttribute("comment", comment);
+
+         // set relationship
+        ret.setRelationshipAttribute("table", toAtlasRelatedObjectId(tableEntity));
 
         // set classifications
         ret.setClassifications(toAtlasClassifications(classificationNames));
